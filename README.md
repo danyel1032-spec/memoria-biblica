@@ -1,36 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Memoria Bíblica
 
-## Getting Started
+«Guarda la Palabra en tu corazón». Entrenador personal de memorización bíblica: PWA en español, instalable y sin conexión.
 
-First, run the development server:
+## Cómo funciona el motor
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Aprendizaje guiado** (`src/lib/engine/mastery.ts`, `LADDER`): fragmentos → completar palabras (huecos adaptativos) → elegir la palabra → ordenar → escribir de memoria. Cada paso exige 90 %.
+- **Evaluación** (`src/lib/engine/compare.ts`): alineación palabra por palabra; distingue correctas, omitidas, sustituidas, agregadas y fuera de orden. Tildes, mayúsculas, puntuación y erratas de una letra no cuentan como error de memoria.
+- **Calendario** (`ts-fsrs`): la calificación sale de la precisión medida. Solo la recuperación sin ayudas (escribir de memoria, recuperación sin pistas) mueve el calendario.
+- **Dominio**: 3 recuperaciones sin ayudas con ≥ 95 %, en días distintos y sucesivas, a lo largo de ≥ 21 días. Un fallo < 80 % devuelve el versículo a consolidación.
+- **Sesión diaria** (`src/lib/engine/session.ts`): repasos vencidos (los más en riesgo primero), aprendizaje y nuevos intercalados, y repaso acumulativo de versículos antiguos.
+
+## Datos
+
+Todo vive en el dispositivo (IndexedDB con Dexie). Copia de seguridad en Ajustes. La sincronización con Supabase es una fase posterior.
+
+Texto bíblico: Reina-Valera 1909 (dominio público), de `seven1m/open-bibles`, convertido con `npm run build:bible -- <usfx> public/bibles/rv1909.json rv1909 "Reina-Valera 1909"`. Para otra traducción con licencia, añade su JSON y su entrada en `TRANSLATIONS` (`src/lib/bible/loader.ts`).
+
+## Desarrollo
+
+```
+npm install
+npm run dev        # desarrollo
+npm test           # pruebas del motor
+npm run build      # exporta a out/ y genera el service worker
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Netlify: `netlify.toml` ya define `npm run build` y publica `out/`.

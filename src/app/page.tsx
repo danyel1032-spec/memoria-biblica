@@ -1,69 +1,138 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db, getSettings } from "@/lib/db/db";
+import { localDay, streakFrom } from "@/lib/db/actions";
+import { buildSession } from "@/lib/engine/session";
+import { RECALL_MODES } from "@/lib/types";
+import { Icon } from "@/components/Icon";
+import { Loading, pct } from "@/components/ui";
+
+export default function HomePage() {
+  const data = useLiveQuery(async () => {
+    const [verses, attempts, settings] = await Promise.all([db.verses.toArray(), db.attempts.orderBy("date").toArray(), getSettings()]);
+    const now = new Date();
+    const today = localDay(now);
+    const startedToday = new Set(
+      attempts.filter((a) => a.stageBefore === "nuevo" && localDay(new Date(a.date)) === today).map((a) => a.verseId),
+    ).size;
+    const plan = buildSession(verses, {
+      now,
+      newPerDay: settings.newPerDay,
+      startedToday,
+      maxReviews: settings.maxReviewsPerSession,
+      retention: settings.retention,
+    });
+    const monthAgo = Date.now() - 30 * 86_400_000;
+    const recall = attempts.filter((a) => RECALL_MODES.includes(a.mode) && new Date(a.date).getTime() > monthAgo);
+    const recallAvg = recall.length ? recall.reduce((s, a) => s + a.accuracy, 0) / recall.length : null;
+    const doneToday = attempts.filter((a) => localDay(new Date(a.date)) === today).length;
+    return {
+      verses,
+      plan,
+      streak: streakFrom(attempts.map((a) => a.date)),
+      recallAvg,
+      doneToday,
+      counts: {
+        nuevo: verses.filter((v) => v.stage === "nuevo").length,
+        aprendiendo: verses.filter((v) => v.stage === "aprendiendo").length,
+        consolidando: verses.filter((v) => v.stage === "consolidando").length,
+        dominado: verses.filter((v) => v.stage === "dominado").length,
+      },
+    };
+  }, []);
+
+  if (!data) return <Loading />;
+  const { plan, verses, counts } = data;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div>
+      <header className="mb-6">
+        <p className="text-sm font-semibold tracking-wide text-gold">MEMORIA BÍBLICA</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">Guarda la Palabra en tu corazón</h1>
+      </header>
+
+      {verses.length === 0 ? (
+        <div className="card p-6">
+          <p className="text-lg font-semibold">Empieza eligiendo qué memorizar</p>
+          <p className="mt-2 text-sm text-muted">
+            Busca un versículo o pasaje en la Biblioteca, o escríbelo tú. La app te enseñará por pasos y te dirá cuándo repasar para no olvidarlo.
           </p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <Link href="/biblioteca/" className="btn btn-primary">
+              <Icon name="search" /> Buscar en la Biblioteca
+            </Link>
+            <Link href="/agregar/" className="btn btn-secondary">
+              <Icon name="plus" /> Escribir un versículo
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      ) : (
+        <>
+          <section className="card p-5">
+            <h2 className="text-lg font-semibold">Sesión de hoy</h2>
+            {plan.items.length > 0 ? (
+              <>
+                <ul className="mt-3 space-y-1.5 text-sm">
+                  {plan.dueCount > 0 && <li>{plan.dueCount} {plan.dueCount === 1 ? "repaso pendiente" : "repasos pendientes"}</li>}
+                  {plan.learningCount > 0 && <li>{plan.learningCount} en aprendizaje</li>}
+                  {plan.newCount > 0 && <li>{plan.newCount} {plan.newCount === 1 ? "versículo nuevo" : "versículos nuevos"}</li>}
+                  {plan.cumulativeCount > 0 && <li>{plan.cumulativeCount} de repaso acumulativo (versículos anteriores)</li>}
+                </ul>
+                <Link href="/sesion/" className="btn btn-primary mt-5 w-full text-lg">
+                  Empezar sesión
+                </Link>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-muted">
+                No hay nada pendiente por ahora. {counts.nuevo === 0 && "Agrega versículos nuevos en la Biblioteca cuando quieras."}
+              </p>
+            )}
+          </section>
+
+          <section className="mt-4 grid grid-cols-3 gap-3">
+            <Stat label="Días seguidos" value={String(data.streak)} icon="flame" />
+            <Stat label="Ejercicios hoy" value={String(data.doneToday)} />
+            <Stat label="Precisión sin ayudas (30 días)" value={pct(data.recallAvg)} />
+          </section>
+
+          <section className="card mt-4 p-5">
+            <h2 className="text-lg font-semibold">Tu repertorio</h2>
+            <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+              {(
+                [
+                  ["nuevo", "Nuevos"],
+                  ["aprendiendo", "Aprendiendo"],
+                  ["consolidando", "Consolidando"],
+                  ["dominado", "Dominados"],
+                ] as const
+              ).map(([k, label]) => (
+                <Link key={k} href={`/versiculos/?estado=${k}`} className="rounded-xl bg-surface-2 p-2">
+                  <p className="text-2xl font-bold tabular-nums">{counts[k]}</p>
+                  <p className="text-[11px] leading-tight text-muted">{label}</p>
+                </Link>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted">
+              Un versículo queda dominado solo cuando lo recuerdas sin ayudas, con 95 % o más, en tres evaluaciones de días distintos a lo largo de al
+              menos tres semanas.
+            </p>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, icon }: { label: string; value: string; icon?: string }) {
+  return (
+    <div className="card p-3">
+      <p className="flex items-center gap-1 text-2xl font-bold tabular-nums">
+        {icon && <Icon name={icon} className="h-5 w-5 text-gold" />}
+        {value}
+      </p>
+      <p className="mt-0.5 text-[11px] leading-tight text-muted">{label}</p>
     </div>
   );
 }
